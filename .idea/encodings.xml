@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="Encoding">
-    <file url="file://$PROJECT_DIR$/src/main/java/DataHandling/Communication.java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/java/Main.java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/java/Management/Communication.java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/java/Management/ManagementCommands.java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/java/Management/Security.java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/src/main/java/Windows/Client.java" charset="UTF-8" />

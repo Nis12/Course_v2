@@ -1,8 +1,9 @@
 package Windows;
 
-import DataHandling.Communication;
-
-import static DataHandling.ConAndVar.*;
+import DataHandling.Directory;
+import DataHandling.GlobalData;
+import Management.ClientCheck;
+import Management.ServerCheck;
 
 import javax.swing.*;
 import javax.swing.text.MaskFormatter;
@@ -11,11 +12,9 @@ import java.awt.event.*;
 import java.io.*;
 import java.net.*;
 import java.text.ParseException;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Objects;
 
-public class GraphicalInitialSettings extends JFrame {
+public class GraphicalInitialSettings extends JFrame implements Directory {
     private JPanel contentPane;
     private JButton clientButton;
     private JButton serverButton;
@@ -30,9 +29,14 @@ public class GraphicalInitialSettings extends JFrame {
     private JLabel saveLabel;
     private AnimationLoading AL;
     private JPopupMenu popup;
-    private ArrayList<String> list = new ArrayList<>();
-    private boolean save = true, click = false;
-    private Connect connect;
+
+    private boolean save = true;
+    private boolean click = false;
+    private GlobalData globalData;
+    private ServerCheck serverCheck;
+    private ClientCheck clientCheck;
+    private Check check;
+
 
     public GraphicalInitialSettings() {
         super("Initialization");
@@ -42,67 +46,64 @@ public class GraphicalInitialSettings extends JFrame {
         setVisible(true);
         pack();
 
+        globalData = new GlobalData();
+        portFormattedTextField.setText(globalData.connectSettings.getProperty("PORT"));
+        searchCheckBox.setSelected(Boolean.parseBoolean(globalData.connectSettings.getProperty("SEARCH")));
+        save = Boolean.parseBoolean(globalData.connectSettings.getProperty("SAVE"));
+        controlTextAndEnabled_ipAddressFormattedTextField();
+
         saveLabel.setText("");
         saveLabel.setIcon(new ImageIcon(DIR_SOURCE_IMAGE + save + "_save.png"));
         globalIPTextField.setText(ethernetIP());
         localIPTextField.setText(localIP());
         popup = new JPopupMenu();
 
-        friends();
+        for (String str : globalData.fList) friendsComboBox.addItem(str);
 
         // Remove one string
         JMenuItem removeItem = new JMenuItem("Remove");
-        removeItem.addActionListener(e -> {
-            for (int i = 0; i < list.size(); i++)
-                if (list.get(i).equals(friendsComboBox.getSelectedItem().toString()))
-                    list.remove(i);
-            friendsComboBox.removeAllItems();
-            for (String str : list) friendsComboBox.addItem(str);
-            friendsComboBox.setSelectedIndex(0);
-        });
+        removeItem.addActionListener(e -> deleteFriendFromList());
         popup.add(removeItem);
 
         // Clean all friend list
         JMenuItem cleanItem = new JMenuItem("Clean");
         cleanItem.addActionListener(e -> {
             friendsComboBox.removeAllItems();
-            list = new ArrayList<>();
+            globalData.deleteAllFriendsFromList();
         });
         popup.add(cleanItem);
 
         // Add popup menu
         friendsComboBox.addMouseListener(new MouseAdapter() {
             public void mouseClicked(MouseEvent event) {
-                if (SwingUtilities.isRightMouseButton(event))
-                    popup.show(friendsComboBox, event.getX(), event.getY());
+                if (SwingUtilities.isRightMouseButton(event)) popup.show(friendsComboBox, event.getX(), event.getY());
             }
         });
 
         // Client
         clientButton.addActionListener(e -> {
             if (click) {
-                click = false;
-                connect.interrupt();
                 AL.close();
+                check.interrupt();
+                clientCheck.interrupt();
             } else {
-                click = true;
                 AL = new AnimationLoading(GraphicalInitialSettings.super.getLocation());
-                connect = new Connect(clientButton.getName());
-                connect.start();
+                check = new Check(false);
+                check.start();
             }
         });
         // Server
         serverButton.addActionListener(e -> {
             if (click) {
-                click = false;
-                connect.inter();
-                connect.interrupt();
+                AL.close();
+                check.interrupt();
+                serverCheck.interrupt();
             } else {
-                click = true;
                 AL = new AnimationLoading(GraphicalInitialSettings.super.getLocation());
-                connect = new Connect(serverButton.getName());
-                connect.start();
+                check = new Check(true);
+                check.start();
             }
+            click = !click;
         });
 
         // click exit
@@ -121,19 +122,14 @@ public class GraphicalInitialSettings extends JFrame {
             try {
                 String string = friendsComboBox.getSelectedItem().toString();
                 ipAddressFormattedTextField.setText(string.substring(friendsComboBox.getSelectedItem().toString().indexOf(" ")).trim());
-                Collections.swap(list, 0, friendsComboBox.getSelectedIndex());
+                Collections.swap(globalData.fList, 0, friendsComboBox.getSelectedIndex());
                 friendsComboBox.removeAllItems();
-                for (String str : list) friendsComboBox.addItem(str);
-            } catch (NullPointerException ignored) {
-            }
+                for (String str : globalData.fList) friendsComboBox.addItem(str);
+            } catch (NullPointerException ignored) {}
         });
 
         // click to combobox
-        searchCheckBox.addActionListener(e -> {
-            if (!searchCheckBox.isSelected()) ipAddressFormattedTextField.setText("192168001100");
-            else ipAddressFormattedTextField.setText("192168");
-            ipAddressFormattedTextField.setEnabled(!ipAddressFormattedTextField.isEnabled());
-        });
+        searchCheckBox.addActionListener(e -> controlTextAndEnabled_ipAddressFormattedTextField());
         slider1.addChangeListener(e -> sliderValue.setText("Timeout connection: " + String.valueOf(slider1.getValue()) + " sec"));
 
         // change form location
@@ -181,38 +177,16 @@ public class GraphicalInitialSettings extends JFrame {
         });
     }
 
-    // add friends list
-    private void friends() {
-        list = new ArrayList<>();
-        try {
-            BufferedReader input = new BufferedReader(new FileReader(DIR_DATABASE + "FriendsIP.txt"));
-            String line;
-            while ((line = input.readLine()) != null)
-                if (!line.equals("") && !line.equals("\n")) {
-                    list.add(line);
-                    friendsComboBox.addItem(line);
-                }
-            input.close();
-            File file = new File(DIR_DATABASE + "FriendsIP.txt");
-            if (file.exists()) {
-                file.delete();
-                file.createNewFile();
-            } else file.createNewFile();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    private void controlTextAndEnabled_ipAddressFormattedTextField(){
+        if (!searchCheckBox.isSelected()) ipAddressFormattedTextField.setText("192168001100");
+        else ipAddressFormattedTextField.setText("192168");
+        ipAddressFormattedTextField.setEnabled(!searchCheckBox.isSelected());
     }
 
     // end InitialSettings
     private void end(boolean exit) {
-        try {
-            FileWriter writer = new FileWriter(DIR_DATABASE + "FriendsIP.txt", true);
-            PrintWriter printWriter = new PrintWriter(writer);
-            for (String str : list) printWriter.println(str);
-            printWriter.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        globalData.saveFriendsList();
+        globalData.saveProp(portFormattedTextField.getText(), String.valueOf(save), String.valueOf(searchCheckBox.isSelected()));
         if (exit) System.exit(0);
         else dispose();
     }
@@ -225,7 +199,6 @@ public class GraphicalInitialSettings extends JFrame {
             f.setValidCharacters("0123456789 ");
             f = new MaskFormatter("*****");
             portFormattedTextField = new JFormattedTextField(f);
-            portFormattedTextField.setValue("8382 ");
         } catch (ParseException e) {
             e.printStackTrace();
         }
@@ -255,204 +228,64 @@ public class GraphicalInitialSettings extends JFrame {
         return ip;
     }
 
-    // connect timer
-    private class Timeout extends Thread {
-        private long time;
-        private final ServerSocket socket;
-
-        private Timeout(ServerSocket socket, long time) {
-            this.time = time;
-            this.socket = socket;
-        }
-
-        @Override
-        public void run() {
-            long timer = System.currentTimeMillis() + time * 1000,
-                    counter = timer - time * 1000;
-            while (!isInterrupted()) {
-                if (counter < System.currentTimeMillis()) {
-                    counter = System.currentTimeMillis() + 980;
-                    sliderValue.setText("Timeout connection: " + time + " sec");
-                    time--;
-                }
-                if (timer < System.currentTimeMillis())
-                    try {
-                        socket.close();
-                        sliderValue.setText("Timeout connection: " + slider1.getValue() + " sec");
-                        break;
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-            }
-        }
+    private void deleteFriendFromList() {
+        globalData.deleteFriendFromList(friendsComboBox.getSelectedItem().toString());
+        friendsComboBox.removeAllItems();
+        for (String str : globalData.fList) friendsComboBox.addItem(str);
+        friendsComboBox.setSelectedIndex(0);
     }
 
-    // check connection
-    private class Connect extends Thread {
-        final String mode;
-        ServerSocket serverSocket;
-        Timeout timeout;
+    private class Check extends Thread {
 
-        private Connect(String mode) {
-            this.mode = mode;
+        final boolean serv;
+
+        private Check(boolean serv) {
+            this.serv = serv;
         }
 
         @Override
         public void run() {
-            switch (mode) {
-                case "Client":
-                    try {
-                        if (checkConnection()) {
-                            boolean have = true;
-                            for (String currentLine : list)
-                                if (currentLine.substring(currentLine.lastIndexOf(" ") + 1).trim().equals(ipAddressFormattedTextField.getText()))
-                                    have = false;
-                            if (have && save) {
-                                String[] strings = new String[list.size() + 1];
-                                strings[0] = ipAddressFormattedTextField.getText();
-                                for (int i = 1; i < strings.length; i++) strings[i] = list.get(i - 1);
-                                Save.main(strings);
-                            }
-                            end(false);
-                            new Client(new Communication(ipAddressFormattedTextField.getText(), Integer.parseInt(portFormattedTextField.getText().trim())));
-                        }
-                    } catch (IOException e1) {
-                        e1.printStackTrace();
-                    }
-                    break;
-                case "Server":
-                    try {
-                        if (waitConnection(Integer.parseInt(portFormattedTextField.getText().trim()))) {
-                            end(false);
-                            new Server(new Communication(Integer.parseInt(portFormattedTextField.getText().trim())));
-                        }
-                    } catch (IOException e1) {
-                        e1.printStackTrace();
-                    }
-                    break;
-                default:
-                    JOptionPane.showConfirmDialog(new JDialog(), "No have this mode", "Error", JOptionPane.CLOSED_OPTION);
-                    break;
-            }
-            if (!connect.isInterrupted()) AL.close();
-        }
-
-        // Ждать проверочного подлючения
-        private boolean waitConnection(int port) {
-            try {
-                serverSocket = new ServerSocket(port);
-                timeout = new Timeout(serverSocket, slider1.getValue());
-                timeout.start();
-                serverSocket.accept();
-                if (serverSocket.isBound()) {
-                    timeout.interrupt();
-                    serverSocket.close();
-                    return true;
-                }
-                serverSocket.close();
-            } catch (SocketException e) {
-                timeout.interrupt();
-                //JOptionPane.showConfirmDialog(new JDialog(), "Timeout connection is over", "Timeout", JOptionPane.CLOSED_OPTION);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return false;
-        }
-
-        private void inter() {
-            try {
-                sliderValue.setText("Timeout connection: 10 sec");
-                AL.close();
-                serverSocket.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        // Проверочное подлючение
-        private boolean checkConnection() {
-            try {
-                if (searchCheckBox.isSelected()) {
-                    String ip = searchIP(Integer.parseInt(portFormattedTextField.getText().trim()));
-                    if (!Objects.equals(ip, null)) {
-                        ipAddressFormattedTextField.setText(ip);
-                        return true;
-                    }
-                } else {
-                    Socket socket = new Socket(ipAddressFormattedTextField.getText(),
-                            Integer.parseInt(portFormattedTextField.getText().trim()));
-                    if (socket.isConnected()) {
-                        socket.close();
-                        return true;
-                    }
-                }
-            } catch (ConnectException ignored) {
-                JOptionPane.showConfirmDialog(new JDialog(), "Server is not found. Maybe you or\n" +
-                        "\"Server\" have problem with connection.", "Trouble :(", JOptionPane.CLOSED_OPTION);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return false;
-        }
-
-        // Поиск локального подкоючения
-        private String searchIP(int port) {
-            String str = localIP();
-            Socket socket;
-            for (int i = 0; i <= 256; i++) {
+            if (serv) {
+                serverCheck = new ServerCheck(Integer.parseInt(portFormattedTextField.getText().trim()), slider1.getValue());
+                serverCheck.start();
                 try {
-                    socket = new Socket();
-                    str = str.substring(0, str.lastIndexOf(".") + 1) + i;
-                    socket.connect(new InetSocketAddress(str, port), 15);
-                    if (socket.isConnected()) {
-                        str = socket.getInetAddress().getHostAddress();
-                        socket.close();
-                        break;
-                    }
-                } catch (SocketTimeoutException ignored) {
-                } catch (IOException | NullPointerException e) {
-                    e.getMessage();
+                    serverCheck.join();
+                } catch (InterruptedException e1) {
+                    e1.printStackTrace();
+                }
+                if (serverCheck.connect) {
+                    AL.close();
+                    end(false);
+                }
+            } else {
+                String ipAddress;
+                if (searchCheckBox.isSelected()) ipAddress = localIPTextField.getText();
+                else ipAddress = ipAddressFormattedTextField.getText();
+                if (save) clientCheck = new ClientCheck(globalData.fList, ipAddress, Integer.parseInt(portFormattedTextField.getText().trim()), globalData, searchCheckBox.isSelected());
+                else clientCheck = new ClientCheck(globalData.fList, ipAddress, Integer.parseInt(portFormattedTextField.getText().trim()), null, searchCheckBox.isSelected());
+                clientCheck.start();
+                try {
+                    clientCheck.join();
+                } catch (InterruptedException e1) {
+                    e1.printStackTrace();
+                }
+                if (clientCheck.connect) {
+                    AL.close();
+                    end(false);
                 }
             }
-            if (str.endsWith("256")) {
-                JOptionPane.showConfirmDialog(new JDialog(), "Server is not found. Maybe you or\n" +
-                        "\"Server\" have problem with connection.", "Trouble :(", JOptionPane.CLOSED_OPTION);
-                return null;
-            }
-            int[] dots = new int[3];
-            char[] ch, charIPAdr = new char[]{'0', '0', '0', '.', '0', '0', '0', '.', '0', '0', '0', '.', '0', '0', '0',};
-            int j = 0;
-            for (int i = 0; i < str.length(); i++) {
-                if (dots.length == j) break;
-                else if (str.substring(i, i + 1).equals(".")) {
-                    dots[j] = i;
-                    j++;
-                }
-            }
-            ch = str.substring(0, dots[0]).toCharArray();
-            System.arraycopy(ch, 0, charIPAdr, 3 - ch.length, ch.length);
-            ch = str.substring(dots[0] + 1, dots[1]).toCharArray();
-            System.arraycopy(ch, 0, charIPAdr, 7 - ch.length, ch.length);
-            ch = str.substring(dots[1] + 1, dots[2]).toCharArray();
-            System.arraycopy(ch, 0, charIPAdr, 11 - ch.length, ch.length);
-            ch = str.substring(dots[2] + 1).toCharArray();
-            System.arraycopy(ch, 0, charIPAdr, 15 - ch.length, ch.length);
-            return String.valueOf(charIPAdr);
+            AL.close();
         }
     }
 
     // animation of loading
     private class AnimationLoading extends JWindow {
         JLabel label = new JLabel();
+        final Point loc;
 
         AnimationLoading(Point loc) {
-            setLayout(new GridLayout());
-            setBackground(new Color(0, 0, 0, 0));
-            setSize(140, 140);
-            setLoadingLocation(loc);
-            label.setIcon(new ImageIcon(DIR_SOURCE_IMAGE + "loading.gif"));
-            add(label);
-            setVisible(true);
+            this.loc = loc;
+            start();
         }
 
         private void close() {
@@ -463,6 +296,21 @@ public class GraphicalInitialSettings extends JFrame {
             loc = new Point(loc.x + GraphicalInitialSettings.super.getWidth() / 2 - super.getWidth() / 2,
                     loc.y + GraphicalInitialSettings.super.getHeight() / 2 - super.getHeight() / 2);
             super.setLocation(loc);
+        }
+
+        private void start() {
+            setLayout(new GridLayout());
+            setBackground(new Color(0, 0, 0, 0));
+            setSize(140, 140);
+            setLoadingLocation(loc);
+            label.setIcon(new ImageIcon(DIR_SOURCE_IMAGE + "loading.gif"));
+            add(label);
+            setVisible(true);
+        }
+
+        @Override
+        protected void finalize() throws Throwable {
+            dispose();
         }
     }
 }

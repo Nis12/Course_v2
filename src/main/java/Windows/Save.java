@@ -1,27 +1,27 @@
 package Windows;
 
-import static DataHandling.ConAndVar.DIR_DATABASE;
+import DataHandling.Directory;
+import DataHandling.GlobalData;
 
 import javax.swing.*;
 import java.awt.event.*;
-import java.io.*;
-import java.util.Arrays;
-import java.util.Collections;
 
-public class Save extends JDialog {
+public class Save extends JDialog implements Directory {
     private JPanel contentPane;
     private JButton buttonOK;
     private JButton buttonCancel;
     private JTextField textField1;
 
-    private Save(String[] list) {
+    public Save(GlobalData globalData, String ipAddress) {
         setContentPane(contentPane);
         setModal(true);
         setLocation(250, 250);
+        pack();
+        setVisible(true);
 
         getRootPane().setDefaultButton(buttonOK);
 
-        buttonOK.addActionListener(e -> onOK(list));
+        buttonOK.addActionListener(e -> onOK(globalData, ipAddress));
 
         buttonCancel.addActionListener(e -> dispose());
 
@@ -40,35 +40,14 @@ public class Save extends JDialog {
             @Override
             public void keyTyped(KeyEvent e) {
                 super.keyTyped(e);
-                if (e.getKeyCode() == KeyEvent.VK_ENTER) onOK(list);
+                if (e.getKeyCode() == KeyEvent.VK_ENTER) onOK(globalData, ipAddress);
                 if (e.getKeyCode() == KeyEvent.VK_ESCAPE) dispose();
             }
         });
     }
 
-    public static void main(String[] args) {
-        Save save = new Save(args);
-        save.pack();
-        save.setVisible(true);
-    }
-
-    private void onOK(String[] list) {
-        try {
-            String line = textField1.getText();
-            for (int i = 1; i < list.length; i++)
-                if (line.equals(list[i].substring(0, list[i].indexOf(" ")))) {
-                    list[i] = null;
-                    Arrays.sort(list, Collections.reverseOrder());
-                    System.arraycopy(list, 0, list, 0, list.length-1);
-                    break;
-                }
-            FileWriter writer = new FileWriter(DIR_DATABASE + "FriendsIP.txt", true);
-            BufferedWriter bufferWriter = new BufferedWriter(writer);
-            bufferWriter.write(line + " " + list[0] + "\n");
-            bufferWriter.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    private void onOK(GlobalData globalData, String ipAddress) {
+        globalData.addFriendsList(textField1.getText(), ipAddress);
         dispose();
     }
 }

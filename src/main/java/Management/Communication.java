@@ -1,7 +1,4 @@
-package DataHandling;
-
-import Management.ManagementCommands;
-import Management.Security;
+package Management;
 
 import javax.sound.sampled.*;
 import javax.swing.*;
@@ -20,15 +17,15 @@ public class Communication extends Thread {
     private final ObjectInputStream objectInputStream;
     private final Socket socket;
     private final Security security;
-    private JTextArea TAmessages, TAcommands;
+    private final JTextArea TAmessages, TAcommands;
     private final ManagementCommands commands;
     private String pass = null;
-
     private enum Alert {connect, disconnect, message}
-
     public enum Mode {MESSAGE, COMMAND, PARAMETERS, ACCESS, LINES}
 
     public Communication(int port) throws IOException {
+        TAcommands = null;
+        TAmessages = null;
         socket = new ServerSocket(port).accept();
         playMelody(Alert.connect);
         objectOutputStream = new ObjectOutputStream(socket.getOutputStream());
@@ -46,6 +43,8 @@ public class Communication extends Thread {
     }
 
     public Communication(String ip_address, int port) throws IOException {
+        TAcommands = null;
+        TAmessages = null;
         socket = new Socket(ip_address, port);
         playMelody(Alert.connect);
         objectOutputStream = new ObjectOutputStream(socket.getOutputStream());
@@ -61,9 +60,41 @@ public class Communication extends Thread {
         commands = null;
     }
 
-    public void setAreas(JTextArea mess, JTextArea com) {
-        TAmessages = mess;
-        TAcommands = com;
+    public Communication(int port, JTextArea forMess, JTextArea forComm) throws IOException {
+        TAcommands = forComm;
+        TAmessages = forMess;
+        socket = new ServerSocket(port).accept();
+        playMelody(Alert.connect);
+        objectOutputStream = new ObjectOutputStream(socket.getOutputStream());
+        objectInputStream = new ObjectInputStream(socket.getInputStream());
+        security = new Security(objectInputStream, objectOutputStream, true);
+        changePassword();
+        security.start();
+        try {
+            security.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        this.start();
+        commands = new ManagementCommands();
+    }
+
+    public Communication(String ip_address, int port, JTextArea forMess, JTextArea forComm) throws IOException {
+        TAcommands = forComm;
+        TAmessages = forMess;
+        socket = new Socket(ip_address, port);
+        playMelody(Alert.connect);
+        objectOutputStream = new ObjectOutputStream(socket.getOutputStream());
+        objectInputStream = new ObjectInputStream(socket.getInputStream());
+        security = new Security(objectInputStream, objectOutputStream, false);
+        security.start();
+        try {
+            security.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        this.start();
+        commands = null;
     }
 
     // generate password
@@ -147,7 +178,7 @@ public class Communication extends Thread {
         } catch (IOException e) {
             e.printStackTrace();
         } catch (NullPointerException e) {
-            JOptionPane.showConfirmDialog(new JDialog(), "Security error!\nTry again perform connecting", "Connect failed", JOptionPane.OK_OPTION);
+            JOptionPane.showConfirmDialog(new JDialog(), "Security error!\nTry again perform connecting", "Connect failed", JOptionPane.YES_NO_OPTION);
             try {
                 socket.close();
             } catch (IOException e1) {
@@ -163,18 +194,28 @@ public class Communication extends Thread {
             getMess = security.read(object);
             System.out.println(getMess);
             if (getMess.startsWith(String.valueOf(Mode.MESSAGE))) {
-                TAmessages.append(time() + " Interlocutor:\n" + getMess.substring(7) + "\n\n");
+                print(TAmessages, time() + " Interlocutor:\n" + getMess.substring(7) + "\n\n");
                 playMelody(Alert.message);
             } else if (getMess.startsWith(String.valueOf(Mode.COMMAND)) && getMess.endsWith(pass)) {
                 String[] strings = commands.command(getMess.substring(7, getMess.length() - pass.length()));
                 for (String string : strings) sayStringMessage(string, Mode.LINES);
             } else if (getMess.startsWith(String.valueOf(Mode.ACCESS))) {
                 pass = getMess.substring(6);
-                TAcommands.append("Access was obtained\n");
+                print(TAcommands, "Access was obtained\n");
             } else if (getMess.startsWith(String.valueOf(Mode.LINES))) {
-                System.out.println(getMess.substring(5));
-                TAcommands.append(getMess.substring(5) + "\n");
+                print(TAcommands, getMess.substring(5));
             }
+        }
+    }
+
+    // determine where to display the text
+    private void print(JTextArea ta, String string){
+        if (ta.equals(TAmessages)) {
+            if (!Objects.equals(ta, null)) ta.append(string);
+            else System.out.println("\nmess:" + string);
+        } else if (ta.equals(TAcommands)){
+            if (!Objects.equals(ta, null)) ta.append(string);
+            else System.out.println("#" + string);
         }
     }
 

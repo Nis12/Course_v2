@@ -12,7 +12,7 @@ import java.net.DatagramSocket;
 import java.net.Socket;
 import java.net.SocketException;
 
-import static DataHandling.ConAndVar.DIR_SOURCE_IMAGE;
+import static DataHandling.GlobalData.DIR_SOURCE_IMAGE;
 
 public class DataTransfer extends Thread {
     private final DatagramSocket datagramSocket;

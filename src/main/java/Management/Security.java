@@ -14,7 +14,7 @@ public class Security extends Thread {
     private final boolean isServer;
     private DESCrypt desCrypt;
 
-    public Security(ObjectInputStream in, ObjectOutputStream out, boolean isServer) {
+    Security(ObjectInputStream in, ObjectOutputStream out, boolean isServer) {
         this.isServer = isServer;
         this.in = in;
         this.out = out;
@@ -55,12 +55,12 @@ public class Security extends Thread {
     }
 
     // Шифровка
-    public byte[] write(String text) throws NullPointerException {
+    byte[] write(String text) throws NullPointerException {
         return desCrypt.writeCryptMessage(text);
     }
 
     // Дешифровка
-    public String read(Object object) {
+    String read(Object object) {
         return desCrypt.readCryptMessage(object);
     }
 

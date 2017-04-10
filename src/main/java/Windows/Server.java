@@ -1,8 +1,8 @@
 package Windows;
 
-import DataHandling.Communication;
+import Management.Communication;
 
-import static DataHandling.ConAndVar.*;
+import static DataHandling.GlobalData.*;
 
 import javax.swing.*;
 import javax.swing.text.DefaultCaret;
@@ -18,16 +18,16 @@ public class Server extends JFrame {
     private JPanel panel1;
     private JLabel alertLabel;
 
-    public Server(Communication com) throws IOException {
+    public Server(int port) throws IOException {
         super("Server");
         setContentPane(panel1);
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         pack();
         setVisible(true);
+        Communication com = new Communication(port, textArea1, textArea2);
         textField1.setEnabled(true);
         alertLabel.setIcon(new ImageIcon(DIR_SOURCE_IMAGE + "true_alert_icon.png"));
         alertLabel.setText("");
-        com.setAreas(textArea1, textArea2);
         ((DefaultCaret) textArea1.getCaret()).setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
         ((DefaultCaret) textArea2.getCaret()).setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
 

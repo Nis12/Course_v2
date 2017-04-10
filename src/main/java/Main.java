@@ -8,12 +8,7 @@ class Main {
         if (args[0].equals("g")) {
             new GraphicalInitialSettings();
         } else if (args[0].equals("c")) {
-            new InitializeConsole();
+            new InitializeConsole().start();
         }
     }
 }
-
-
-
-
-

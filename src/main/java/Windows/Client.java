@@ -1,8 +1,8 @@
 package Windows;
 
-import DataHandling.Communication;
+import Management.Communication;
 
-import static DataHandling.ConAndVar.*;
+import static DataHandling.GlobalData.*;
 import static java.lang.Math.abs;
 
 import javax.imageio.ImageIO;
@@ -25,17 +25,17 @@ public class Client extends JFrame {
     private JLabel alertLabel;
     private JComboBox comboBox1;
 
-    public Client(Communication com) throws IOException {
+    public Client(String ip, int port) throws IOException {
         super("Client");
         setContentPane(panel1);
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         pack();
         setVisible(true);
+        Communication com = new Communication(ip, port, textArea1, textArea2);
         image.add(fps);
         viewButton.setIcon(new ImageIcon(DIR_SOURCE_IMAGE + "triangle_icon_right.png"));
         alertLabel.setIcon(new ImageIcon(DIR_SOURCE_IMAGE + "true_alert_icon.png"));
         alertLabel.setText("");
-        com.setAreas(textArea1, textArea2);
         ((DefaultCaret)textArea1.getCaret()).setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
         ((DefaultCaret)textArea2.getCaret()).setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
 
